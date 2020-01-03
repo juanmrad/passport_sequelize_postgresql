@@ -3,6 +3,17 @@ const app = express();
 const models = require('./models');
 const bodyParser = require("body-parser");
 
+var pbkdf2 = require('pbkdf2');
+var salt = "4213426A433E1F9C29368F36F44F1";
+
+function encryptionPassword(password) {
+  var key = pbkdf2.pbkdf2Sync(
+    password, salt, 36000, 256, 'sha256'
+  );
+  var hash = key.toString('hex');
+
+  return hash;
+}
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -43,7 +54,7 @@ passport.use(new LocalStrategy(
         return done(null, false);
       }
 
-      if (user.password != password) {
+      if (user.password != encryptionPassword(password)) {
         return done(null, false);
       }
       return done(null, user);
@@ -62,7 +73,10 @@ app.post('/',
 
 
 app.post("/sign-up", function (req, response) {
-  models.user.create({ username: req.body.username, password: req.body.password})
+  models.user.create({ 
+    username: req.body.username, 
+    password: encryptionPassword(req.body.password)
+  })
     .then(function (user) {
       response.send(user);
     });
