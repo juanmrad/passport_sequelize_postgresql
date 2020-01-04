@@ -1,10 +1,12 @@
 const express = require("express");
 const app = express();
 const models = require('./models');
+const session = require("express-session");
 const bodyParser = require("body-parser");
+require('dotenv').config();
 
 var pbkdf2 = require('pbkdf2');
-var salt = "4213426A433E1F9C29368F36F44F1";
+var salt = process.env.SALT_KEY;
 
 function encryptionPassword(password) {
   var key = pbkdf2.pbkdf2Sync(
@@ -15,6 +17,11 @@ function encryptionPassword(password) {
   return hash;
 }
 
+app.use(session({
+  secret: "cats", 
+  resave: false, 
+  saveUninitialized: true
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
@@ -26,7 +33,24 @@ const passport = require('passport');
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.get('/success', (req, res) => res.send("Welcome " + req.query.username + "!!"));
+app.get('/success', function(req, res) {
+  if(req.isAuthenticated()) {
+    res.send("Welcome " + req.user.username + "!!");
+  } else {
+    res.send("not authorized.");
+  }
+});
+
+app.get('/logout', function(req, res) {
+  if(req.isAuthenticated()){
+    console.log("user logging out");
+    req.logOut();
+    res.send("user has logged out");
+  } else {
+    res.send("You don't have a session open");
+  }
+});
+
 app.get('/error', (req, res) => res.send("error logging in"));
 
 passport.serializeUser(function (user, cb) {
@@ -67,9 +91,8 @@ passport.use(new LocalStrategy(
 app.post('/',
   passport.authenticate('local', { failureRedirect: '/error' }),
   function(req, res) {
-    res.redirect('/success?username='+req.user.username);
+    res.redirect('/success');
   });
-
 
 
 app.post("/sign-up", function (req, response) {
@@ -82,6 +105,8 @@ app.post("/sign-up", function (req, response) {
     });
 });
 
-app.listen(3000, function () {
-  console.log('server listening on port 3000');
+app.listen(process.env.PORT, function () {
+  console.log('server listening on port ' + 
+  process.env.PORT + ' app name = ' + 
+  process.env.PROJECT_NAME);
 })
